@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'package:geolocator/geolocator.dart';
 
@@ -11,6 +12,32 @@ class CommunicateCoordinates extends StatefulWidget {
 
 class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
   Position? _currentLocation;
+
+  late IO.Socket socket;
+
+  @override
+  void initState() {
+    print("socket connection starting");
+
+    // if we are running app with android emulator, then localhost doesn't work
+    // we need to replace with 10.0.2.2
+    socket = IO.io(
+        "http://10.0.2.2:4000",
+        IO.OptionBuilder()
+            .setTransports(['websocket'])
+            .disableAutoConnect()
+            .build());
+    socket.connect();
+    socket.onConnect((_) {
+      print('Connection established');
+    });
+    print("connected");
+    socket.onDisconnect((_) => print('Connection Disconnection'));
+    socket.onConnectError((err) => print(err));
+    socket.onError((err) => print(err));
+
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,8 +66,7 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
                     onPressed: () async {
                       _currentLocation = await _determinePosition();
                     },
-                    child: Text(
-                        "Send Location-> Latitude: ${_currentLocation?.latitude}"))
+                    child: Text("Send Location"))
               ],
             ))));
   }
@@ -81,6 +107,11 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
     Position position = await Geolocator.getCurrentPosition();
     print("-----------------");
     print(position);
+    var messageJson = {
+      'latitude': position.latitude,
+      'longitude': position.longitude
+    };
+    socket.emit('message', messageJson);
     return position;
   }
 }
