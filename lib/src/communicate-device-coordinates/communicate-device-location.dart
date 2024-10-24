@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 class CommunicateCoordinates extends StatefulWidget {
   const CommunicateCoordinates({super.key});
@@ -14,6 +15,8 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
   Position? _currentLocation;
 
   late IO.Socket socket;
+
+  Timer? timer;
 
   @override
   void initState() {
@@ -35,7 +38,11 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
     socket.onDisconnect((_) => print('Connection Disconnection'));
     socket.onConnectError((err) => print(err));
     socket.onError((err) => print(err));
-
+    setUpSocketListener();
+    timer = Timer.periodic(
+        Duration(seconds: 15), (Timer t) => sendDriverCoordinates());
+    timer = Timer.periodic(
+        Duration(seconds: 20), (Timer t) => setUpSocketListener());
     super.initState();
   }
 
@@ -71,17 +78,19 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
             ))));
   }
 
-  // void lauchURI() {
-  //   try {
-  //     launchUrl(
-  //       Uri.parse(
-  //           'https://communicate?latitude=${_currentLocation?.latitude}&longitude=${_currentLocation?.longitude}, from other App'),
-  //       mode: LaunchMode.externalNonBrowserApplication,
-  //     );
-  //   } catch (e) {
-  //     print(e.toString());
-  //   }
-  // }
+  void sendDriverCoordinates() {
+    print("Timer started for every 15 seconds");
+    var messageJson = {'latitude': 37.4219983, 'longitude': -122.084};
+    socket.emit('message', messageJson);
+  }
+
+  void setUpSocketListener() {
+    print('inside received return emit');
+    socket.on('message-receive', (data) {
+      print("--------");
+      print(data);
+    });
+  }
 
   Future<Position> _determinePosition() async {
     bool serviceEnabled;
@@ -112,6 +121,7 @@ class _CommunicateCoordinatesState extends State<CommunicateCoordinates> {
       'longitude': position.longitude
     };
     socket.emit('message', messageJson);
+    //setUpSocketListener();
     return position;
   }
 }
